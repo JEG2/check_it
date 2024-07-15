@@ -4,6 +4,7 @@ defmodule CheckIt.Schemas.List do
 
   schema "lists" do
     field :name, :string
+    has_many :items, CheckIt.Schemas.Item, preload_order: [desc: :checked_at, desc: :updated_at]
     timestamps()
   end
 
