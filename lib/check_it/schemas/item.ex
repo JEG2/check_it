@@ -10,10 +10,16 @@ defmodule CheckIt.Schemas.Item do
   end
 
   def create_changeset(list, params) do
-    %__MODULE__{}
-    |> cast(params, [:description])
-    |> validate_required([:description])
-    |> put_change(:list, list)
+    changeset = cast(%__MODULE__{}, params, [:description])
+
+    changeset =
+      if list do
+        put_change(changeset, :list_id, list.id)
+      else
+        changeset
+      end
+
+    validate_required(changeset, [:list_id, :description])
   end
 
   def toggle_changeset(item) do

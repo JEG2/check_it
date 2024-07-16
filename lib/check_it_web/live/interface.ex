@@ -1,13 +1,16 @@
 defmodule CheckItWeb.Interface do
   use CheckItWeb, :live_view
 
+  alias CheckIt.Lists
+  alias CheckIt.Items
+
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
-       lists: CheckIt.Lists.get_all() |> Enum.map(fn list -> {list.name, list.id} end),
-       current_list: %CheckIt.Schemas.List{items: []},
-       item_form: to_form(CheckIt.Items.new()),
-       list_form: to_form(CheckIt.Lists.new())
+       lists: Enum.map(Lists.get_all(), fn list -> {list.name, list.id} end),
+       current_list: nil,
+       item_form: formify(Items.new(nil)),
+       list_form: formify(Lists.new())
      )}
   end
 
@@ -49,7 +52,7 @@ defmodule CheckItWeb.Interface do
 
     <.simple_form for={to_form(%{})}>
       <.input
-        :for={item <- @current_list.items}
+        :for={item <- if @current_list, do: @current_list.items, else: []}
         type="checkbox"
         name={"item_#{item.list_id}_#{item.id}"}
         value={!!item.checked_at}
@@ -61,7 +64,11 @@ defmodule CheckItWeb.Interface do
     """
   end
 
-  def handle_event("manage_item_form", %{"item" => %{"list_id" => "create"}}, socket) do
+  def handle_event(
+        "manage_item_form",
+        %{"item" => %{"list_id" => "create"}},
+        socket
+      ) do
     {:noreply,
      push_event(socket, "js-exec", %{
        to: "#server_commands",
@@ -70,50 +77,31 @@ defmodule CheckItWeb.Interface do
   end
 
   def handle_event("manage_item_form", params, socket) do
-    list = CheckIt.Lists.get_one(params["item"]["list_id"])
+    list =
+      if params["item"]["list_id"] != "" do
+        Lists.get_one(params["item"]["list_id"])
+      else
+        nil
+      end
 
     {:noreply,
      assign(socket,
        current_list: list,
-       item_form: to_form(CheckIt.Items.change(list, params["item"]))
+       item_form: formify(Items.new(list, params["item"]))
      )}
   end
 
-  def handle_event("manage_list_form", params, socket) do
-    {:noreply, assign(socket, list_form: to_form(CheckIt.Lists.change(params["list"])))}
-  end
-
-  def handle_event("create_list", params, socket) do
-    case CheckIt.Lists.create(params["list"]) do
-      {:ok, list} ->
-        {:noreply,
-         socket
-         |> assign(
-           lists: [{list.name, list.id} | socket.assigns.lists],
-           current_list: CheckIt.Lists.get_one(list.id),
-           list_form: to_form(CheckIt.Lists.new())
-         )
-         |> push_event("js-exec", %{
-           to: "#server_commands",
-           attr: "data-hide-create-list"
-         })}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, list_form: to_form(changeset))}
-    end
-  end
-
   def handle_event("add_item", params, socket) do
-    case CheckIt.Items.create(socket.assigns.current_list, params["item"]) do
+    case Items.create(socket.assigns.current_list, params["item"]) do
       {:ok, item} ->
         {:noreply,
          assign(socket,
-           current_list: CheckIt.Lists.get_one(item.list_id),
-           item_form: to_form(CheckIt.Items.new())
+           current_list: Lists.get_one(item.list_id),
+           item_form: formify(Items.new(nil))
          )}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, item_form: to_form(changeset))}
+        {:noreply, assign(socket, item_form: formify(changeset))}
     end
   end
 
@@ -125,11 +113,39 @@ defmodule CheckItWeb.Interface do
         item.id == id
       end)
 
-    {:ok, _item} = CheckIt.Items.toggle(item)
+    {:ok, _item} = Items.toggle(item)
 
     {:noreply,
      assign(socket,
-       current_list: CheckIt.Lists.get_one(item.list_id)
+       current_list: Lists.get_one(item.list_id)
      )}
+  end
+
+  def handle_event("manage_list_form", params, socket) do
+    {:noreply, assign(socket, list_form: formify(Lists.new(params["list"])))}
+  end
+
+  def handle_event("create_list", params, socket) do
+    case Lists.create(params["list"]) do
+      {:ok, list} ->
+        {:noreply,
+         socket
+         |> assign(
+           lists: Enum.uniq([{list.name, list.id} | socket.assigns.lists]),
+           current_list: Lists.get_one(list.id),
+           list_form: formify(Lists.new())
+         )
+         |> push_event("js-exec", %{
+           to: "#server_commands",
+           attr: "data-hide-create-list"
+         })}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, list_form: formify(changeset))}
+    end
+  end
+
+  def formify(args) do
+    apply(Phoenix.Component, :to_form, List.wrap(args))
   end
 end

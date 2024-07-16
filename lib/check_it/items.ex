@@ -2,17 +2,13 @@ defmodule CheckIt.Items do
   alias CheckIt.Schemas.Item
   alias CheckIt.Repo
 
-  def new do
-    Item.create_changeset(nil, %{})
-  end
-
-  def change(list, params) do
+  def new(list, params \\ %{}) do
     Item.create_changeset(list, params)
   end
 
   def create(list, params) do
     list
-    |> change(params)
+    |> new(params)
     |> Repo.insert()
   end
 

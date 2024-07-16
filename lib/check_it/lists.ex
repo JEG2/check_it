@@ -2,18 +2,20 @@ defmodule CheckIt.Lists do
   alias CheckIt.Schemas.List
   alias CheckIt.Repo
 
-  def new do
-    List.changeset(%{})
-  end
-
-  def change(params) do
+  def new(params \\ %{}) do
     List.changeset(params)
   end
 
   def create(params) do
-    params
-    |> change()
-    |> Repo.insert()
+    existing = Repo.get_by(List, name: Map.get(params, "name", ""))
+
+    if existing do
+      {:ok, existing}
+    else
+      params
+      |> new()
+      |> Repo.insert()
+    end
   end
 
   def get_all() do
