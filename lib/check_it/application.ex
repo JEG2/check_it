@@ -16,6 +16,7 @@ defmodule CheckIt.Application do
       {Finch, name: CheckIt.Finch},
       # Start a worker by calling: CheckIt.Worker.start_link(arg)
       # {CheckIt.Worker, arg},
+      {Agent, &init_db/0},
       # Start to serve requests, typically the last entry
       CheckItWeb.Endpoint
     ]
@@ -32,5 +33,10 @@ defmodule CheckIt.Application do
   def config_change(changed, _new, removed) do
     CheckItWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  def init_db do
+    :ets.new(:lists, [:public, :named_table])
+    :ets.new(:items, [:public, :named_table])
   end
 end

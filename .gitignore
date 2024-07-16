@@ -35,3 +35,6 @@ check_it-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# macos files
+.DS_Store
+**/.DS_Store
